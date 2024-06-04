@@ -25,7 +25,7 @@
         const k=20;
         const P=50;
         const I=1000;
-        const iter_num=200;
+        const iter_num=1000;
         var points = [];
         var pool=[];
 
@@ -162,9 +162,14 @@
             var b=random_N(P);
             pp=merge(pool[a], pool[b]);
             //console.log(pp.d);
+            /*
             pool.push(pp);
             pool.sort((a, b)=>a.d-b.d)
-            pool=pool.slice(0,P);
+            pool=pool.slice(0,P);*/
+            if(pp.d<pool[P-1].d){
+                pool[P-1]=pp;
+                pool.sort((a, b)=>a.d-b.d)
+            }
         }
 
         function update(){
@@ -214,7 +219,7 @@
                 update_N(1000);
                 display();
                 chartPoint(i, pool[0].d)
-                await sleep(200);
+                await sleep(5);
             }
         }
 
