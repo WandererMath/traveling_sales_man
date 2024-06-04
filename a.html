@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+    <h1 id="head"></h1>
+    <h1 id="myText"></h1>
+    <canvas id="myCanvas" width="700" height="400" style="border:1px solid #000000;"></canvas>
+    <canvas id="plot" width="800" height="1000" style="border:1px solid #FFFFFF;"></canvas>
+    <script>
+        var canvas = document.getElementById('myCanvas');
+        var context = canvas.getContext('2d');
+        var ctx=context;
+        context.fillStyle = 'black';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+
+        var plot = document.getElementById('plot');
+        var plot_ctx=plot.getContext('2d');
+
+        var textH1=document.getElementById('myText');
+        var head=document.getElementById('head');
+        var plot_a;
+
+        const N=100;
+        const k=20;
+        const P=50;
+        const I=1000;
+        const iter_num=200;
+        var points = [];
+        var pool=[];
+
+        class Path{
+            p;
+            d;
+            constructor(p){
+                this.p=p;
+                this.d=0;
+                var x=points[p[N-1]]['x'];
+                var y=points[p[N-1]]['y'];
+                var xx;
+                var yy;
+                for (var i=0; i<N; i++){
+                    xx=points[p[i]]['x'];
+                    yy=points[p[i]]['y'];
+                    this.d+=Math.sqrt(Math.pow(x-xx,2)+Math.pow(y-yy,2));
+                    x=xx;
+                    y=yy;
+                }
+            }
+            update_d(){
+                this.d=0;
+                var x=points[this.p[N-1]]['x'];
+                var y=points[this.p[N-1]]['y'];
+                var xx;
+                var yy;
+                for (var i=0; i<N; i++){
+                    xx=points[this.p[i]]['x'];
+                    yy=points[this.p[i]]['y'];
+                    this.d+=Math.sqrt(Math.pow(x-xx,2)+Math.pow(y-yy,2));
+                }
+                x=xx;
+                y=yy;
+            }
+        }
+
+
+        function random_x(){
+            let a=Math.floor(Math.random()*canvas.width);
+            return a;
+        }
+
+        function random_y(){
+            let a=Math.floor(Math.random()*canvas.height);
+            return a;
+        }
+
+        // [0, N-1]
+        function random_N(N1){
+            let a=Math.floor(Math.random()*N1);
+            return a;
+        }
+        
+        function initPoints(){            
+            for (var i=0; i<N; i=i+1){
+                points.push({x:random_x(),y:random_y()})
+            }
+        }
+
+        function initPool(){
+            for (var i=0; i<I; i++){
+                pool.push(new Path(randomPath()));
+            }
+            pool.sort((a, b)=>a.d-b.d)
+            pool=pool.slice(0,P);
+            plot_a=pool[0].d;
+        }
+
+        function drawPoints() {
+            context.fillStyle = 'white'; 
+
+            points.forEach(function(point) {
+                context.beginPath();
+                context.arc(point.x, point.y, 5, 0, 2 * Math.PI); // Draw a circle at each point
+                context.fill();
+            });
+        }
+
+        function drawLine(point1, point2) {
+            ctx.beginPath();
+            ctx.moveTo(point1.x, point1.y);
+            ctx.lineTo(point2.x, point2.y);
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawPath(p){
+            for (var i=0; i<N; i++){
+                drawLine(points[p[i]], points[p[(i+1)%N]]);
+            }
+        }
+
+
+        function randomPath(){
+            p=[];
+            var t;
+            for (var i=0; i<N; i++){
+                t=random_N(N);
+                while(p.includes(t))   t=(t+1)%N;
+                p.push(t);
+            }
+            return p;
+        }
+
+        function merge(p1, p2){
+            p=p1.p.slice(0, Math.floor(N/2));
+            var i=0;
+            while(i<N){
+                if(!p.includes(p2.p[i])){
+                    p.push(p2.p[i]);
+                }
+                i++;
+            }
+            return new Path(p);      
+        }
+
+        function mutate(){
+            p=pool[random_N(P)];
+            var t;
+            var a=random_N(N);
+            var b=random_N(N);
+            t=p.p[a];
+            p.p[a]=p.p[b];
+            p.p[b]=t;
+            p.update_d();
+            pool.sort((a, b)=>a.d-b.d)
+            pool=pool.slice(0,P);
+        }
+
+        function cross_once(){
+            var a=random_N(P);
+            var b=random_N(P);
+            pp=merge(pool[a], pool[b]);
+            //console.log(pp.d);
+            pool.push(pp);
+            pool.sort((a, b)=>a.d-b.d)
+            pool=pool.slice(0,P);
+        }
+
+        function update(){
+            for (var i=0; i<k;i++){
+                cross_once();
+            }
+            mutate();
+        }
+
+        function update_N(x){
+            for (var i=0; i<x;i++){
+                update();
+            }
+        }
+
+        function display(){
+            // Display optimal path
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = 'black'; 
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = 'white'; 
+            drawPoints();
+            path=pool[0];
+            drawPath(path.p);
+            textH1.innerHTML=path.d.toString();
+            
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function chartPoint(x, y){
+            plot_ctx.fillStyle="Blue";
+            plot_ctx.beginPath();
+            plot_ctx.arc(x*plot.width/iter_num, plot.height-y/plot_a*plot.height, 3, 0, 2 * Math.PI); 
+            plot_ctx.fill();
+        }
+
+        async function main(){
+            initPoints();
+            initPool();
+            
+
+            for (var i=0; i<iter_num;i++){
+                head.innerHTML="Iteration "+i.toString();
+                update_N(1000);
+                display();
+                chartPoint(i, pool[0].d)
+                await sleep(200);
+            }
+        }
+
+        main();
+
+        
+    </script>
+</body>
+</html>
